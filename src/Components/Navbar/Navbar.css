@@ -1,0 +1,215 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Jost:wght@300;400;500&display=swap');
+
+
+:root {
+  --nav-bg: rgba(8, 8, 12, 0.85);
+  --nav-border: rgba(255, 255, 255, 0.07);
+  --accent: #c9a96e;
+  --accent-glow: rgba(201, 169, 110, 0.15);
+  --text-primary: #f0ece4;
+  --text-muted: rgba(240, 236, 228, 0.5);
+  --font-display: 'Cormorant Garamond', serif;
+  --font-body: 'Jost', sans-serif;
+}
+
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+
+.App {
+  min-height: 100vh;
+  background: #08080c;
+}
+
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 0 3rem;
+  background: var(--nav-bg);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-bottom: 1px solid var(--nav-border);
+}
+
+nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 72px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+nav h1 {
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 300;
+  letter-spacing: 0.12em;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  position: relative;
+}
+
+nav h1::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+}
+
+nav ul {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  list-style: none;
+}
+
+nav ul li a {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--text-muted);
+  padding: 0.5rem 1.1rem;
+  border-radius: 2px;
+  position: relative;
+  transition: color 0.3s ease;
+}
+
+nav ul li a::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  background: var(--accent-glow);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+nav ul li a:hover {
+  color: var(--text-primary);
+}
+
+nav ul li a:hover::before {
+  opacity: 1;
+}
+
+nav ul li:last-child a {
+  color: var(--accent);
+  border: 1px solid rgba(201, 169, 110, 0.35);
+  padding: 0.45rem 1.2rem;
+  transition: color 0.3s ease, background 0.3s ease, border-color 0.3s ease;
+}
+
+nav ul li:last-child a:hover {
+  color: #08080c;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+nav ul li:last-child a::before {
+  display: none;
+}
+
+header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  header {
+    padding: 0 1.25rem;
+  }
+
+  nav h1 {
+    font-size: 1.15rem;
+  }
+
+  nav ul {
+    gap: 0;
+  }
+
+  nav ul li a {
+    padding: 0.5rem 0.65rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+  }
+}
+.vto-username {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  padding: 0 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.vto-logout-btn {
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid rgba(201, 169, 110, 0.35);
+  color: var(--accent);
+  padding: 0.45rem 1.2rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: color 0.3s ease, background 0.3s ease, border-color 0.3s ease;
+}
+
+.vto-logout-btn:hover {
+  color: #08080c;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.vto-username {
+  margin-right: 10px;
+}
+.vto-brand {
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 300;
+  letter-spacing: 0.12em;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  text-decoration: none;
+  position: relative;
+}
+
+.vto-brand::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+}
+
+.vto-brand:hover {
+  color: var(--accent);
+  transition: color 0.3s ease;
+}

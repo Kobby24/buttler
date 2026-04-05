@@ -1,0 +1,144 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Jost:wght@300;400;500&display=swap');
+
+:root {
+  --accent: #c9a96e;
+  --accent-glow: rgba(201, 169, 110, 0.15);
+  --text-primary: #f0ece4;
+  --text-muted: rgba(240, 236, 228, 0.5);
+  --bg-main: #08080c;
+  --card-bg: rgba(255, 255, 255, 0.05);
+}
+
+.signup-page {
+  min-height: 100vh;
+  background: var(--bg-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 1.5rem 2rem;
+}
+
+.signup-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--card-bg);
+  padding: 44px 36px;
+  border-radius: 20px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.signup-card h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 400;
+  font-size: 2.2rem;
+  color: var(--text-primary);
+  letter-spacing: 0.05em;
+  text-align: center;
+  margin: 0;
+  position: relative;
+  padding-bottom: 16px;
+}
+
+.signup-card h2::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+.signup-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.signup-fields input {
+  padding: 13px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-primary);
+  font-family: 'Jost', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 300;
+  outline: none;
+  transition: border-color 0.3s ease, background 0.3s ease;
+  width: 100%;
+}
+
+.signup-fields input::placeholder {
+  color: var(--text-muted);
+  font-weight: 300;
+}
+
+.signup-fields input:focus {
+  border-color: rgba(201, 169, 110, 0.45);
+  background: var(--accent-glow);
+}
+
+.signup-btn {
+  padding: 13px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-family: 'Jost', sans-serif;
+  font-weight: 500;
+  font-size: 0.82rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.signup-btn:hover {
+  background: var(--accent);
+  color: var(--bg-main);
+}
+
+.signup-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-family: 'Jost', sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+}
+
+.signup-divider::before,
+.signup-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.signup-footer {
+  text-align: center;
+  font-family: 'Jost', sans-serif;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 300;
+}
+
+.signup-footer a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.signup-footer a:hover {
+  opacity: 0.75;
+}

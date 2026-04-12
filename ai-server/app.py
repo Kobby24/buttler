@@ -13,19 +13,19 @@ import os
 def resolve_url(url):
     """ამოწმებს გადამისამართებებს და აბრუნებს საბოლოო URL-ს"""
     try:
-        # ვიყენებთ requests-ს, რომ მივყვეთ გადამისამართებებს (მაგ. amzn.eu -> amazon.com)
+        
         resp = requests.head(url, allow_redirects=True, timeout=5, 
                              headers={"User-Agent": "Mozilla/5.0"})
         return resp.url
     except Exception:
-        # თუ რამე შეცდომა მოხდა, ვაბრუნებთ ორიგინალ ლინკს
+        
         return url
 
 load_dotenv(override=True)
 app = Flask(__name__)
 CORS(app)
 
-# OpenRouter კონფიგურაცია
+
 client = OpenAI(
   base_url="https://openrouter.ai/api/v1",
   api_key=os.getenv("OPENROUTER_API_KEY"),
@@ -45,7 +45,7 @@ def validate_person():
 
     try:
         response = client.chat.completions.create(
-            model="google/gemini-2.0-flash-001", # სრულიად უფასო Vision მოდელი
+            model="google/gemini-2.0-flash-001",
             messages=[{
                 "role": "user",
                 "content": [
@@ -55,7 +55,7 @@ def validate_person():
             }]
         )
         result = json.loads(response.choices[0].message.content)
-        return jsonify({"valid": result.get("has_person", False), "message": "Result processed"})
+        return jsonify({"valid": result.get("has_person", False), "message": "Person not detected"})
     except Exception as e:
         return jsonify({"valid": False, "message": str(e)}), 500
 
@@ -81,11 +81,11 @@ def validate_clothing_url():
     if not url:
         return jsonify({"valid": False, "message": "No URL provided"}), 400
 
-    # ლინკის "გაშლა" (რომ amzn.eu-მ არ დააბნიოს)
+    
     resolved_url = resolve_url(url)
 
     try:
-        # ვიყენებთ უფრო ძლიერ მოდელს ტექსტის ანალიზისთვის
+        
         response = client.chat.completions.create(
             model="google/gemini-2.0-flash-001", 
             messages=[{
@@ -116,7 +116,7 @@ def validate_clothing_url():
             })
 
     except Exception as e:
-        # თუ AI-მ ვერ უპასუხა, მაგრამ ლინკში აშკარად ჩანს ტანსაცმლის სიტყვები, მაინც გავატაროთ
+        
         clothing_keywords = ['t-shirt', 'shirt', 'dress', 'pants', 'jeans', 'clothing', 'apparel', 'shoes', 'jacket']
         if any(word in resolved_url.lower() for word in clothing_keywords):
             return jsonify({"valid": True, "product_name": "Clothing detected"})

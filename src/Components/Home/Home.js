@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import "./Home.css";
 import { isAuthenticated, logoutUser,} from "../../utils/authUtils";
 import { useNavigate } from "react-router-dom";
@@ -8,7 +8,6 @@ export default function TryOn() {
   const [userImageFile, setUserImageFile] = useState(null);
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
-  const [mannequin, setMannequin] = useState(null);
   const [error, setError] = useState("");
 
   const [clothesInput, setClothesInput] = useState("");
@@ -20,40 +19,62 @@ export default function TryOn() {
   const [bodyType, setBodyType] = useState("");
   const [analysis, setAnalysis] = useState("");
 
-  const [loading, setLoading] = useState(false);
+  const [uploadProcessing, setUploadProcessing] = useState(false);
   const [urlLoading, setUrlLoading] = useState(false);
   const [fitLoading, setFitLoading] = useState(false);
-
-  const [mannequinLoading, setMannequinLoading] = useState(false);
-  const [bodyDetails, setBodyDetails] = useState(null);
+  const [generatedMannequinPath, setGeneratedMannequinPath] = useState(null);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setGeneratedMannequinPath(null);
+  }, [height, weight]);
+
+  const getBodyCategory = (heightCm, weightKg) => {
+    const h = parseFloat(heightCm);
+    const w = parseFloat(weightKg);
+    if (!h || h <= 0 || !w || w <= 0) return null;
+
+    const bmi = w / ((h / 100) ** 2);
+
+    if (bmi < 18.5) {
+      return "skinny";
+    }
+    if (bmi < 25) {
+      return "normal";
+    }
+    return "fat";
+  };
+
+  const bodyCategory = useMemo(() => getBodyCategory(height, weight), [height, weight]);
+  const mannequinPath = bodyCategory ? `/models/${bodyCategory}.png` : null;
 
   const handleLogout = () => {
     logoutUser();
       navigate(0);
   };
 
-  const getBodyType = () => {
-    const h = parseFloat(height);
-    const w = parseFloat(weight);
-    if (!h || !w) return null;
-    const bmi = w / ((h / 100) ** 2);
-    if (bmi < 18.5) return "skinny";
-    if (bmi < 25) return "normal";
-    return "fat";
-  };
-
   const processImage = async (file) => {
     if (!file) return;
 
-    const preview = URL.createObjectURL(file);
-    setUserImage(preview);
+    const blobUrl = URL.createObjectURL(file);
+    setUserImage(blobUrl);
     setUserImageFile(file);
-    setLoading(true);
+    setUploadProcessing(true);
     setError("");
-    setMannequin(null);
     setFitScore(null);
+    setGeneratedMannequinPath(null);
+
+    const timeoutMs = 90000;
+    let fetchSignal = undefined;
+    let fetchTimeoutId;
+    if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+      fetchSignal = AbortSignal.timeout(timeoutMs);
+    } else {
+      const ctrl = new AbortController();
+      fetchSignal = ctrl.signal;
+      fetchTimeoutId = setTimeout(() => ctrl.abort(), timeoutMs);
+    }
 
     try {
       const formData = new FormData();
@@ -62,15 +83,21 @@ export default function TryOn() {
       const validateRes = await fetch("http://127.0.0.1:5000/validate-person", {
         method: "POST",
         body: formData,
+        signal: fetchSignal,
       });
 
-      const validateData = await validateRes.json();
+      let validateData;
+      try {
+        validateData = await validateRes.json();
+      } catch {
+        throw new Error("Invalid response from server");
+      }
 
       if (!validateData.valid) {
-        setError(validateData.message || "❌ No person detected in the photo");
+        URL.revokeObjectURL(blobUrl);
         setUserImage(null);
         setUserImageFile(null);
-        setLoading(false);
+        setError(validateData.message || "❌ No person detected in the photo");
         return;
       }
 
@@ -80,24 +107,35 @@ export default function TryOn() {
       const processRes = await fetch("http://127.0.0.1:5000/process", {
         method: "POST",
         body: processFormData,
+        signal: fetchSignal,
       });
 
-      const processData = await processRes.json();
+      const processData = await processRes.json().catch(() => ({}));
 
       if (processData.image) {
+        URL.revokeObjectURL(blobUrl);
         setUserImage(`data:image/png;base64,${processData.image}`);
+      } else if (processData.error) {
+        setError(`⚠️ Background removal failed: ${processData.error}. Using your original photo.`);
       }
     } catch (err) {
       console.error(err);
-      setError("⚠️ Could not connect to server. Using original photo.");
+      if (err.name === "TimeoutError" || err.name === "AbortError") {
+        setError(
+          "⚠️ Server took too long (API or rembg). Your photo is kept — you can use Generate below, or restart ai-server."
+        );
+      } else {
+        setError("⚠️ Could not reach server. Your photo is kept — check that ai-server is running on port 5000.");
+      }
+    } finally {
+      if (fetchTimeoutId) clearTimeout(fetchTimeoutId);
+      setUploadProcessing(false);
     }
-
-    setLoading(false);
   };
 
-  const handleCreate = () => {
-    if (loading) {
-      setError("⏳ Photo is processing... please wait");
+  const handleGenerate = () => {
+    if (uploadProcessing) {
+      setError("⏳ Photo is still uploading to the server — wait a moment.");
       return;
     }
 
@@ -127,11 +165,13 @@ export default function TryOn() {
       return;
     }
 
-    const type = getBodyType();
-    if (!type) return;
+    if (!mannequinPath) {
+      setError("📏 Enter valid height (cm) and weight (kg)");
+      return;
+    }
 
     setError("");
-    setMannequin(`/models/${type}.png`);
+    setGeneratedMannequinPath(mannequinPath);
   };
 
   const handleClothes = async () => {
@@ -239,26 +279,25 @@ export default function TryOn() {
       </div>
 
       <div className="card">
-        <label className="upload-box">
+        <label className={`upload-box${uploadProcessing ? " upload-box--busy" : ""}`}>
           <span>
-            {loading ? "⏳ Processing photo..." : "📷 Upload your photo"}
+            {uploadProcessing ? "⏳ Processing photo..." : "📷 Upload your photo"}
           </span>
           <input
             type="file"
             hidden
+            disabled={uploadProcessing}
             accept="image/*"
             onChange={(e) => e.target.files[0] && processImage(e.target.files[0])}
           />
         </label>
 
-        {userImage && !loading && (
-          <div style={{ textAlign: "center", marginTop: "8px" }}>
-            <img
-              src={userImage}
-              alt="preview"
-              style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "8px", border: "2px solid #c9a96e" }}
-            />
-            <p style={{ color: "#c9a96e", fontSize: "0.8rem", margin: "4px 0 0" }}>✅ Person detected</p>
+        {userImage && (
+          <div className="card-photo-thumb">
+            <img src={userImage} alt="Uploaded preview" />
+            <p className="card-photo-thumb-caption">
+              {uploadProcessing ? "⏳ Checking / processing…" : "✅ Person detected"}
+            </p>
           </div>
         )}
 
@@ -277,8 +316,33 @@ export default function TryOn() {
           />
         </div>
 
-        <button className="create-btn" onClick={handleCreate} disabled={loading}>
-          {loading ? "⏳ Processing..." : "Generate Mannequin"}
+        {userImage && !bodyCategory && (height || weight) && (
+          <p style={{ color: "rgba(240, 236, 228, 0.5)", fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", textAlign: "center", margin: 0 }}>
+            📏 Enter valid height (cm) and weight (kg), then click Generate Mannequin.
+          </p>
+        )}
+
+        {userImage && bodyCategory && !isAuthenticated() && (
+          <p style={{ color: "#c9a96e", fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", textAlign: "center", margin: 0 }}>
+            <span>
+              Sign in and click Generate to load the mannequin.{" "}
+              <span onClick={() => navigate("/signin")} style={{ cursor: "pointer", textDecoration: "underline" }}>
+                Sign in
+              </span>
+            </span>
+          </p>
+        )}
+
+        {userImage && bodyCategory && isAuthenticated() && (
+          <p style={{ color: "#c9a96e", fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", textAlign: "center", margin: 0 }}>
+            {bodyCategory === "skinny" && "🧍 Body: slim (BMI under 18.5)"}
+            {bodyCategory === "normal" && "🧍 Body: average (BMI 18.5–24.9)"}
+            {bodyCategory === "fat" && "🧍 Body: larger (BMI 25+)"}
+          </p>
+        )}
+
+        <button className="create-btn" type="button" onClick={handleGenerate} disabled={uploadProcessing || !userImage}>
+          Generate Mannequin
         </button>
 
         {error && (
@@ -288,54 +352,86 @@ export default function TryOn() {
         )}
       </div>
 
-      {mannequin && (
+      {userImage && (
         <div className="preview">
-          <div className="preview-box" style={{ position: "relative", overflow: "hidden" }}>
-            <img src={mannequin} style={{ width: "100%", height: "100%", objectFit: "contain", position: "absolute" }} />
-            {userImage && (
-              <img src={userImage} style={{ position: "absolute", width: "100%", height: "100%", objectFit: "cover", opacity: 0.25 }} />
-            )}
-            {clothesImage && (
-              <img src={clothesImage} style={{ position: "absolute", width: "100%", height: "100%", objectFit: "contain" }} />
-            )}
+          <div className="preview-row">
+            <div className="preview-panel">
+              <span className="preview-panel-label">Your photo</span>
+              <div className="preview-box preview-box--photo">
+                <img src={userImage} alt="Your upload" className="preview-box-photo-img" />
+              </div>
+            </div>
+            <div className="preview-panel">
+              <span className="preview-panel-label">Mannequin</span>
+              <div className="preview-box preview-box--mannequin">
+                {generatedMannequinPath ? (
+                  <>
+                    <img
+                      src={generatedMannequinPath}
+                      alt="Mannequin"
+                      className="preview-mannequin-base"
+                    />
+                    {clothesImage && (
+                      <img
+                        src={clothesImage}
+                        alt="Clothing"
+                        className="preview-mannequin-layer--clothes"
+                      />
+                    )}
+                  </>
+                ) : (
+                  <span className="preview-box-placeholder">
+                    {isAuthenticated() && mannequinPath
+                      ? "Click Generate Mannequin"
+                      : isAuthenticated()
+                        ? "Enter height & weight"
+                        : "Sign in, then generate"}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="clothes-box">
-            <input
-              placeholder="Paste clothing link (clothes only)"
-              value={clothesInput}
-              onChange={(e) => {
-                setClothesInput(e.target.value);
-                setClothesUrlValid(false);
-                setClothesImage("");
-              }}
-            />
-            <button onClick={handleClothes} disabled={urlLoading}>
-              {urlLoading ? "⏳..." : "Load"}
-            </button>
-          </div>
+          {isAuthenticated() && generatedMannequinPath && (
+            <>
+              <div className="clothes-box">
+                <input
+                  placeholder="Paste clothing link (clothes only)"
+                  value={clothesInput}
+                  onChange={(e) => {
+                    setClothesInput(e.target.value);
+                    setClothesUrlValid(false);
+                    setClothesImage("");
+                  }}
+                />
+                <button onClick={handleClothes} disabled={urlLoading}>
+                  {urlLoading ? "⏳..." : "Load"}
+                </button>
+              </div>
 
-          {clothesUrlValid && (
-            <p style={{ color: "#6ec97a", fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", textAlign: "center", margin: "4px 0" }}>
-              ✅ Clothing link confirmed
-            </p>
-          )}
-
-          <button className="create-btn" onClick={calculateFit} disabled={fitLoading}>
-            {fitLoading ? "⏳ Analyzing..." : "Check Fit"}
-          </button>
-
-          {fitScore !== null && (
-            <div className="result-box">
-              <p>🔥 Fit Score: <strong>{fitScore}%</strong></p>
-              <p>📏 Recommended Size: <strong>{size}</strong></p>
-              {bodyType && <p>🧍 Body Type: <strong>{bodyType}</strong></p>}
-              {analysis && (
-                <p style={{ fontSize: "0.88rem", opacity: 0.85, marginTop: "8px", lineHeight: 1.5 }}>
-                  💬 {analysis}
+              {clothesUrlValid && (
+                <p style={{ color: "#6ec97a", fontFamily: "'Jost', sans-serif", fontSize: "0.85rem", textAlign: "center", margin: "4px 0" }}>
+                  ✅ Clothing link confirmed
                 </p>
               )}
-            </div>
+
+              <button className="create-btn" onClick={calculateFit} disabled={fitLoading}>
+                {fitLoading ? "⏳ Analyzing..." : "Check Fit"}
+              </button>
+
+              {fitScore !== null && (
+                <div className="result-box">
+                  <p>🔥 Fit Score: <strong>{fitScore}%</strong></p>
+                  <p>📏 Recommended Size: <strong>{size}</strong></p>
+                  {bodyType && <p>🧍 Body Type: <strong>{bodyType}</strong></p>}
+                  {analysis && (
+                    <p style={{ fontSize: "0.88rem", opacity: 0.85, marginTop: "8px", lineHeight: 1.5 }}>
+                      💬 {analysis}
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

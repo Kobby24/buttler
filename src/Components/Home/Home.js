@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import "./Home.css";
-import { isAuthenticated, logoutUser,} from "../../utils/authUtils";
+import { isAuthenticated } from "../../utils/authUtils";
 import { useNavigate } from "react-router-dom";
+import { checkFitApi, processImageApi, validateClothingUrl, validatePerson } from "../../api/analysisApi";
 
 export default function TryOn() {
   const [userImage, setUserImage] = useState(null);
@@ -49,11 +50,6 @@ export default function TryOn() {
   const bodyCategory = useMemo(() => getBodyCategory(height, weight), [height, weight]);
   const mannequinPath = bodyCategory ? `/models/${bodyCategory}.png` : null;
 
-  const handleLogout = () => {
-    logoutUser();
-      navigate(0);
-  };
-
   const processImage = async (file) => {
     if (!file) return;
 
@@ -77,21 +73,7 @@ export default function TryOn() {
     }
 
     try {
-      const formData = new FormData();
-      formData.append("image", file);
-
-      const validateRes = await fetch("http://127.0.0.1:5000/validate-person", {
-        method: "POST",
-        body: formData,
-        signal: fetchSignal,
-      });
-
-      let validateData;
-      try {
-        validateData = await validateRes.json();
-      } catch {
-        throw new Error("Invalid response from server");
-      }
+      const validateData = await validatePerson(file, fetchSignal);
 
       if (!validateData.valid) {
         URL.revokeObjectURL(blobUrl);
@@ -101,16 +83,7 @@ export default function TryOn() {
         return;
       }
 
-      const processFormData = new FormData();
-      processFormData.append("image", file);
-
-      const processRes = await fetch("http://127.0.0.1:5000/process", {
-        method: "POST",
-        body: processFormData,
-        signal: fetchSignal,
-      });
-
-      const processData = await processRes.json().catch(() => ({}));
+      const processData = await processImageApi(file, fetchSignal);
 
       if (processData.image) {
         URL.revokeObjectURL(blobUrl);
@@ -186,13 +159,7 @@ export default function TryOn() {
     setClothesImage("");
 
     try {
-      const res = await fetch("http://127.0.0.1:5000/validate-clothing-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: clothesInput }),
-      });
-
-      const data = await res.json();
+      const data = await validateClothingUrl(clothesInput);
 
       if (!data.valid) {
         setError(data.message || "❌ This is not a clothing link");
@@ -232,18 +199,12 @@ export default function TryOn() {
     setFitScore(null);
 
     try {
-      const formData = new FormData();
-      formData.append("image", userImageFile);
-      formData.append("height", height);
-      formData.append("weight", weight);
-      formData.append("product_url", clothesInput);
-
-      const res = await fetch("http://127.0.0.1:5000/check-fit", {
-        method: "POST",
-        body: formData,
+      const data = await checkFitApi({
+        file: userImageFile,
+        height,
+        weight,
+        productUrl: clothesInput,
       });
-
-      const data = await res.json();
 
       if (data.error) {
         setError(`❌ ${data.error}`);

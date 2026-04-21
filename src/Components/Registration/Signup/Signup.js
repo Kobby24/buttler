@@ -1,20 +1,32 @@
 import React, { useState } from 'react'
 import './Signup.css'
 import { useNavigate, Link } from 'react-router-dom'
-import { saveUser, loginUser } from '../../../utils/authUtils'
+import { registerUser } from '../../../api/authApi'
+import { saveAuthSession } from '../../../utils/authUtils'
 
 const Signup = () => {
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSignup = (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
-    saveUser({ name, email, password }); 
-    loginUser();                         
-    navigate("/");
-    window.location.reload();
+    setLoading(true);
+    setError("");
+
+    try {
+      const authData = await registerUser({ name, email, password });
+      saveAuthSession(authData);
+      navigate("/");
+      window.location.reload();
+    } catch (err) {
+      setError(err.message || "Could not create account");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -26,7 +38,8 @@ const Signup = () => {
           <input type="email" placeholder="Email" onChange={(e) => setEmail(e.target.value)} required />
           <input type="password" placeholder="Password" onChange={(e) => setPassword(e.target.value)} required />
         </div>
-        <button type="submit" className="signup-btn">Create Account</button>
+        {error && <p style={{ color: '#e05a5a', margin: '0 0 10px 0' }}>{error}</p>}
+        <button type="submit" className="signup-btn" disabled={loading}>{loading ? 'Creating...' : 'Create Account'}</button>
         <div className="signup-divider">or</div>
         <p className="signup-footer">
           Already have an account? <Link to="/signin">Sign in</Link>
